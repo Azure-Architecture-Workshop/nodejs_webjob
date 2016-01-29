@@ -18,16 +18,17 @@ function startProcessing() {
         }
 
         console.log("Retrieved Entity Count: " + items.length);
+        var output = [];
         
         for (var i=0, tot=items.length; i < tot; i++) {
     
-            console.log("Processing");
-            console.log(items[i]);
-            console.log("");
+            output.push(items[i].id);
 
             entryContext.completeItem(items[i].id, function() {});
 
         }
+        
+        console.log("Completed Entities: ['" + output.join("', '") + "']")
     
         temporal.delay(5000, function() {
             startProcessing();
