@@ -13,30 +13,40 @@ function EntryContext(documentDBClient, databaseId, collectionId) {
 module.exports = EntryContext;
 
 EntryContext.prototype = {
-    init: function (callback) {
+    init: function (errorCallback, completeCallback) {
         var self = this;
 
         docdbUtils.getOrCreateDatabase(self.client, self.databaseId, function (err, db) {
             if (err) {
-                callback(err);
-
+                errorCallback(err);
             } else {
                 self.database = db;
                 docdbUtils.getOrCreateCollection(self.client, self.database._self, self.collectionId, function (err, coll) {
                     if (err) {
-                        callback(err);
-
+                        errorCallback(err);
                     } else {
                         self.collection = coll;
+                        completeCallback();
                     }
                 });
             }
         });
     },
 
-    find: function (querySpec, callback) {
+    getNextItems: function (quantity, callback) {
+        if (!quantity)
+            quantity = 10;
+            
         var self = this;
 
+        var querySpec = {
+            query: 'SELECT TOP ' + quantity + ' * FROM root r WHERE r.isActive=@isActive',
+            parameters: [{
+                name: '@isActive',
+                value: true
+            }]
+        };
+        
         self.client.queryDocuments(self.collection._self, querySpec).toArray(function (err, results) {
             if (err) {
                 callback(err);
@@ -47,23 +57,7 @@ EntryContext.prototype = {
         });
     },
 
-    addItem: function (item, callback) {
-        var self = this;
-
-        item.date = Date.now();
-        item.completed = false;
-
-        self.client.createDocument(self.collection._self, item, function (err, doc) {
-            if (err) {
-                callback(err);
-
-            } else {
-                callback(null, doc);
-            }
-        });
-    },
-
-    updateItem: function (itemId, callback) {
+    completeItem: function (itemId, callback) {
         var self = this;
 
         self.getItem(itemId, function (err, doc) {
@@ -71,7 +65,7 @@ EntryContext.prototype = {
                 callback(err);
 
             } else {
-                doc.completed = true;
+                doc.isActive = false;
 
                 self.client.replaceDocument(doc._self, doc, function (err, replaced) {
                     if (err) {
